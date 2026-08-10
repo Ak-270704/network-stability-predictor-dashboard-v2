@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 
 const locationRoutes = require("./routes/locationRoutes");
-
+const metricRoutes = require("./routes/metricRoutes");
 const app = express();
 
 app.use(cors());
@@ -16,5 +16,5 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/locations", locationRoutes);
-
+app.use("/api/metrics", metricRoutes);
 module.exports = app;
