@@ -45,5 +45,5 @@ const predictionSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
+predictionSchema.index({ location: 1, predictedAt: -1 });
 module.exports = mongoose.model("Prediction", predictionSchema);

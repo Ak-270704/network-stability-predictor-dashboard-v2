@@ -54,4 +54,6 @@ const alertSchema = new mongoose.Schema(
   }
 );
 
+alertSchema.index({ location: 1, createdAt: -1 });
+
 module.exports = mongoose.model("Alert", alertSchema);

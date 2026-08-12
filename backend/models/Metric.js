@@ -18,6 +18,7 @@ const metricSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 0,
+      max: 100,
     },
 
     bandwidth: {
@@ -54,5 +55,5 @@ const metricSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
+metricSchema.index({ location: 1, recordedAt: -1 });
 module.exports = mongoose.model("Metric", metricSchema);
