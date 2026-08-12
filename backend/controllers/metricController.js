@@ -1,6 +1,39 @@
+const {
+    collectNetworkMetric
+} = require("../services/collectorService");
+
 const Metric = require("../models/Metric");
 
 // Get all metrics
+const collectMetric = async (req, res) => {
+    try {
+        const { locationId } = req.body;
+
+        if (!locationId) {
+            return res.status(400).json({
+                success: false,
+                message: "locationId is required"
+            });
+        }
+
+        const metric = await collectNetworkMetric(locationId);
+
+        const populatedMetric = await metric.populate("location");
+
+        res.status(201).json({
+            success: true,
+            message: "Network metric collected successfully",
+            data: populatedMetric
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "Failed to collect network metric",
+            error: error.message
+        });
+    }
+};
+
 const getMetrics = async (req, res) => {
     try {
         const metrics = await Metric.find()
@@ -114,5 +147,6 @@ module.exports = {
     getMetrics,
     getLatestMetric,
     getMetricsByLocation,
-    createMetric
+    createMetric,
+    collectMetric
 };
