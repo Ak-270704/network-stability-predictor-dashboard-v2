@@ -3,6 +3,9 @@ const cors = require("cors");
 
 const locationRoutes = require("./routes/locationRoutes");
 const metricRoutes = require("./routes/metricRoutes");
+const predictionRoutes = require("./routes/predictionRoutes");
+const alertRoutes = require("./routes/alertRoutes");
+
 const app = express();
 
 app.use(cors());
@@ -17,4 +20,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/locations", locationRoutes);
 app.use("/api/metrics", metricRoutes);
+app.use("/api/predictions", predictionRoutes);
+app.use("/api/alerts", alertRoutes);
+
 module.exports = app;
