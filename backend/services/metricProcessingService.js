@@ -1,4 +1,5 @@
 const Metric = require("../models/Metric");
+const { emitMetricUpdate } = require("../sockets/socket");
 
 const validateMetric = (data) => {
     const requiredFields = [
@@ -106,7 +107,7 @@ const processMetric = async (metricData) => {
         ...metricData,
         stabilityScore
     });
-
+    emitMetricUpdate(metric);
     return {
         metric,
         status: getNetworkStatus(stabilityScore)
