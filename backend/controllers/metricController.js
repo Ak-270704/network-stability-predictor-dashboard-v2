@@ -2,9 +2,13 @@ const {
     collectNetworkMetric
 } = require("../services/collectorService");
 
+const {
+    processMetric
+} = require("../services/metricProcessingService");
+
 const Metric = require("../models/Metric");
 
-// Get all metrics
+// Collect network metric using the network collector
 const collectMetric = async (req, res) => {
     try {
         const { locationId } = req.body;
@@ -34,6 +38,7 @@ const collectMetric = async (req, res) => {
     }
 };
 
+// Get all metrics
 const getMetrics = async (req, res) => {
     try {
         const metrics = await Metric.find()
@@ -113,26 +118,25 @@ const createMetric = async (req, res) => {
             packetLoss,
             bandwidth,
             jitter,
-            uptime,
-            stabilityScore
+            uptime
         } = req.body;
 
-        const metric = await Metric.create({
+        const result = await processMetric({
             location,
             latency,
             packetLoss,
             bandwidth,
             jitter,
-            uptime,
-            stabilityScore
+            uptime
         });
 
-        const populatedMetric = await metric.populate("location");
+        const populatedMetric = await result.metric.populate("location");
 
         res.status(201).json({
             success: true,
             message: "Network metric created successfully",
-            data: populatedMetric
+            data: populatedMetric,
+            status: result.status
         });
     } catch (error) {
         res.status(400).json({
