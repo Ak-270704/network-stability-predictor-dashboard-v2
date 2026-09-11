@@ -1,6 +1,10 @@
 const Metric = require("../models/Metric");
 const { emitMetricUpdate } = require("../sockets/socket");
 
+const {
+    validateAndNormalizeMetric
+} = require("../utils/metricValidator");
+
 const validateMetric = (data) => {
     const requiredFields = [
         "latency",
@@ -94,26 +98,31 @@ const getNetworkStatus = (score) => {
 
 
 const processMetric = async (metricData) => {
-
-    const validation = validateMetric(metricData);
+    const validation =
+        validateAndNormalizeMetric(metricData);
 
     if (!validation.valid) {
         throw new Error(validation.message);
     }
 
-    const stabilityScore = calculateStabilityScore(metricData);
+    const normalizedData = validation.data;
+
+    const stabilityScore =
+        calculateStabilityScore(normalizedData);
 
     const metric = await Metric.create({
-        ...metricData,
+        ...normalizedData,
+        location: metricData.location,
         stabilityScore
     });
+
     emitMetricUpdate(metric);
+
     return {
         metric,
         status: getNetworkStatus(stabilityScore)
     };
 };
-
 
 module.exports = {
     validateMetric,
