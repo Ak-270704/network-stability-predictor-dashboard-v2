@@ -1,6 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 
+const notFoundMiddleware = require("./middleware/notFoundMiddleware");
+const errorMiddleware = require("./middleware/errorMiddleware");
 const locationRoutes = require("./routes/locationRoutes");
 const metricRoutes = require("./routes/metricRoutes");
 const predictionRoutes = require("./routes/predictionRoutes");
@@ -22,5 +24,7 @@ app.use("/api/locations", locationRoutes);
 app.use("/api/metrics", metricRoutes);
 app.use("/api/predictions", predictionRoutes);
 app.use("/api/alerts", alertRoutes);
+app.use(notFoundMiddleware);
+app.use(errorMiddleware);
 
 module.exports = app;
