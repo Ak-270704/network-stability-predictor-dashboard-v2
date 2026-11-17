@@ -1,10 +1,10 @@
-(echo pandas
-echo numpy
-echo scikit-learn==1.6.1
-echo joblib
-echo matplotlib
-echo seaborn
-echo requests
-echo speedtest-cli
-echo fastapi
-echo uvicorn)
+pandas
+numpy
+scikit-learn==1.6.1
+joblib
+matplotlib
+seaborn
+requests
+speedtest-cli
+fastapi
+uvicorn

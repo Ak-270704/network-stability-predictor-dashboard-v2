@@ -50,7 +50,37 @@ const emitMetricUpdate = (metric) => {
     io.emit("networkUpdate", metric);
 };
 
+const emitPredictionUpdate = (prediction) => {
+    if (!io) {
+        console.warn("Socket.IO has not been initialized");
+        return;
+    }
+
+    const locationId =
+        prediction.location?._id || prediction.location;
+
+    if (!locationId) {
+        console.warn("Prediction has no location");
+        return;
+    }
+
+    // Send prediction to clients subscribed to this location
+    io.to(`location:${locationId}`).emit(
+        "predictionUpdate",
+        prediction
+    );
+
+    // Send prediction to all connected dashboard clients
+    io.emit("prediction:new", prediction);
+
+    console.log(
+        `Prediction broadcast for location ${locationId}`
+    );
+};
+
+
 module.exports = {
     initializeSocket,
-    emitMetricUpdate
+    emitMetricUpdate,
+    emitPredictionUpdate
 };

@@ -1,0 +1,26 @@
+# Environment and credentials
+.env
+.env.*
+!.env.example
+
+# Node.js
+node_modules/
+npm-debug.log*
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Datasets
+python-ml/datasets/*.csv
+python-ml/datasets/*.xlsx
+
+# OS files
+desktop.ini
+.DS_Store
+
+# Logs
+*.log
