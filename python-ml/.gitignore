@@ -1,4 +1,4 @@
-(echo __pycache__/
+echo __pycache__/
 echo *.pyc
 echo .venv/
 echo .env
@@ -6,4 +6,6 @@ echo .env.*
 echo datasets/*.csv
 echo datasets/*.xlsx
 echo *.log
-echo .ipynb_checkpoints/)
+echo .ipynb_checkpoints/
+echo desktop.ini
+echo Thumbs.db
