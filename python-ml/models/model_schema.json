@@ -1,0 +1,27 @@
+{
+    "project": "Network Stability Predictor Dashboard",
+    "features": [
+        "latency_ms",
+        "packet_loss_percent",
+        "jitter_ms",
+        "download_mbps",
+        "upload_mbps",
+        "wifi_signal_percent",
+        "dns_response_ms",
+        "http_response_ms",
+        "target_reachable"
+    ],
+    "classes": [
+        "Stable",
+        "Unstable",
+        "Warning"
+    ],
+    "models": {
+        "current_decision_tree": "decision_tree.joblib",
+        "current_random_forest": "random_forest.joblib",
+        "future_random_forest": "future_random_forest.joblib"
+    },
+    "forecast_horizon_minutes": 5,
+    "sklearn_version": "1.6.1",
+    "exported_at": "2026-11-17T15:04:32.820436"
+}
