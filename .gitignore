@@ -24,3 +24,9 @@ desktop.ini
 
 # Logs
 *.log
+
+backups/
+python-ml/collector/pending_measurements/
+# Local network collector datasets
+/python-ml/collector/network_data.csv
+/python-ml/collector/network_data_hybrid.csv

@@ -8,6 +8,8 @@ import requests
 import speedtest
 from datetime import datetime
 from statistics import mean
+from collector.backend_sender import build_payload
+from collector.retry_queue import save_pending, retry_pending, pending_count
 
 
 # ==========================================================
@@ -20,11 +22,13 @@ HTTP_TARGET = "https://www.google.com"
 
 # NEW: Target one reading every 15 seconds
 COLLECTION_INTERVAL = 15
+SPEED_TEST_INTERVAL = 60
+MAX_CACHED_SPEED_AGE = 120  # seconds; older speed readings are not submitted to ML
 
 PING_COUNT = 5
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-CSV_FILE = os.path.join(SCRIPT_DIR, "network_data.csv")
+CSV_FILE = os.path.join(SCRIPT_DIR, "network_data_hybrid.csv")
 
 
 # ==========================================================
@@ -309,7 +313,7 @@ def dns_test():
             e
         )
 
-        return 0
+        return None
 
 
 # ==========================================================
@@ -347,7 +351,7 @@ def http_test():
             e
         )
 
-        return 0
+        return None
 
 
 # ==========================================================
@@ -409,7 +413,7 @@ def speed_test():
             e
         )
 
-        return 0.0, 0.0, False
+        return None, None, False
 
 
 # ==========================================================
@@ -454,7 +458,7 @@ def get_fresh_speed():
             time.sleep(2)
 
 
-    return 0.0, 0.0
+    return None, None
 
 
 # ==========================================================
@@ -528,7 +532,9 @@ HEADERS = [
 
     "target_reachable",
 
-    "stability"
+    "stability",
+    "speed_source",
+    "speed_age_seconds"
 
 ]
 
@@ -655,7 +661,7 @@ def main():
 
     print(
         "Fresh speed test:",
-        "Every measurement"
+        f"Every {SPEED_TEST_INTERVAL} seconds (cached between tests)"
     )
 
     print(
@@ -673,6 +679,10 @@ def main():
 
 
     measurement_number = 1
+    last_speed_attempt = None
+    last_speed_success = None
+    cached_download = None
+    cached_upload = None
 
 
     while True:
@@ -771,12 +781,46 @@ def main():
 
 
             # ==========================================
-            # FRESH SPEED TEST
+            # HYBRID SPEED TEST (60 SECOND CADENCE)
             # ==========================================
-
-            download, upload = (
-                get_fresh_speed()
+            now = time.monotonic()
+            speed_due = (
+                last_speed_attempt is None
+                or now - last_speed_attempt >= SPEED_TEST_INTERVAL
             )
+
+            speed_source = "unavailable"
+            speed_age_seconds = None
+
+            if speed_due:
+                print("Speed test due: collecting fresh download/upload values...")
+                # Schedule from attempt start; avoids retrying every 15 seconds
+                # if the speed-test service is temporarily unavailable.
+                last_speed_attempt = time.monotonic()
+                fresh_download, fresh_upload = get_fresh_speed()
+                if fresh_download is not None and fresh_upload is not None:
+                    cached_download, cached_upload = fresh_download, fresh_upload
+                    last_speed_success = time.monotonic()
+                    speed_source = "fresh"
+                    speed_age_seconds = 0.0
+                else:
+                    print("Fresh speed test failed; checking cached speed age.")
+
+            if last_speed_success is not None:
+                current_age = round(time.monotonic() - last_speed_success, 2)
+                if speed_source != "fresh" and current_age <= MAX_CACHED_SPEED_AGE:
+                    speed_source = "cached"
+                    speed_age_seconds = current_age
+                elif speed_source != "fresh":
+                    print("Cached speed is too old; ML submission will be skipped.")
+
+            if speed_source in ("fresh", "cached"):
+                download, upload = cached_download, cached_upload
+            else:
+                download, upload = None, None
+
+            print("Speed source:", speed_source,
+                  "| Age:", speed_age_seconds, "seconds")
 
 
             # ==========================================
@@ -825,7 +869,11 @@ def main():
 
                 reachable,
 
-                stability
+                stability,
+
+                speed_source,
+
+                speed_age_seconds
 
             ]
 
@@ -833,10 +881,39 @@ def main():
             # ==========================================
             # SAVE
             # ==========================================
+            csv_saved = save_row(row)
 
-            save_row(
-                row
-            )
+            if csv_saved:
+                metrics = {
+                    "latency_ms": latency,
+                    "packet_loss_percent": packet_loss,
+                    "jitter_ms": jitter,
+                    "download_mbps": download,
+                    "upload_mbps": upload,
+                    "wifi_signal_percent": signal,
+                    "dns_response_ms": dns_time,
+                    "http_response_ms": http_time,
+                    "target_reachable": reachable
+                }
+
+                try:
+                    payload = build_payload(metrics)
+                    # Save to disk before attempting network transmission.
+                    save_pending(payload)
+                    print("Measurement safely queued:", payload["measurementId"])
+                except ValueError as error:
+                    print("Skipping invalid ML measurement:", error)
+                except OSError as error:
+                    print("Unable to queue measurement:", error)
+            else:
+                print("CSV save failed. Backend submission skipped.")
+
+            # Retry older pending measurements even when this reading
+            # was invalid or CSV saving failed.
+            print("Processing queued measurements...")
+            recovered = retry_pending(max_items=10)
+            print("Recovered:", recovered)
+            print("Still pending:", pending_count())
 
 
             # ==========================================
@@ -893,6 +970,9 @@ def main():
                 upload,
                 "Mbps"
             )
+
+            print("Speed reading:", speed_source,
+                  "| Age:", speed_age_seconds, "seconds")
 
             print(
                 "DNS:",
