@@ -267,7 +267,67 @@ const retryMLMetricPrediction = async (req, res) => {
     }
 };
 
+// Get latest ML collector measurement
+const getLatestMLMetric = async (req, res) => {
+    try {
+        const metric = await MLNetworkMetric.findOne()
+            .populate("location")
+            .sort({ recordedAt: -1 });
+
+        if (!metric) {
+            return res.status(404).json({
+                success: false,
+                message: "No ML network metrics found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: metric
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch latest ML metric"
+        });
+    }
+};
+
+// Get ML collector measurement history by location
+const getMLMetricHistory = async (req, res) => {
+    try {
+        const { locationId } = req.params;
+
+        if (!mongoose.isValidObjectId(locationId)) {
+            return res.status(400).json({
+                success: false,
+                message: "Valid location ObjectId is required"
+            });
+        }
+
+        const metrics = await MLNetworkMetric.find({
+            location: locationId
+        })
+            .populate("location")
+            .sort({ recordedAt: -1 })
+            .limit(100);
+
+        return res.status(200).json({
+            success: true,
+            count: metrics.length,
+            data: metrics
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch ML metric history"
+        });
+    }
+};
+
 module.exports = {
     ingestMLMetric,
-    retryMLMetricPrediction
+    retryMLMetricPrediction,
+    getLatestMLMetric,
+    getMLMetricHistory
 };

@@ -10,7 +10,9 @@ const {
 
 const {
     ingestMLMetric,
-    retryMLMetricPrediction
+    retryMLMetricPrediction,
+    getLatestMLMetric,
+    getMLMetricHistory
 } = require("../controllers/mlMetricController");
 
 const router = express.Router();
@@ -22,5 +24,7 @@ router.post("/", createMetric);
 router.post("/collect", collectMetric);
 router.post("/ml", ingestMLMetric);
 router.post("/ml/:metricId/retry", retryMLMetricPrediction);
+router.get("/ml/latest", getLatestMLMetric);
+router.get("/ml/history/:locationId", getMLMetricHistory);
 
 module.exports = router;
