@@ -1,4 +1,5 @@
-﻿import { useEffect, useRef, useState } from "react";
+﻿
+import { useEffect, useRef, useState } from "react";
 
 import DashboardHeader from "./components/Dashboard/DashboardHeader";
 import MetricCard from "./components/Dashboard/MetricCard";
@@ -9,7 +10,7 @@ import PredictionHistoryAnalytics from "./components/Analytics/PredictionHistory
 import {
   getLocations,
   getMLMetricHistory,
-  getPredictionHistory,
+  getClassifiedPredictionHistory,
   getPredictionByMetricId,
 } from "./services/api";
 
@@ -68,8 +69,12 @@ function App() {
   const [metric, setMetric] = useState(null);
   const [history, setHistory] = useState([]);
   const [prediction, setPrediction] = useState(null);
+
+  // Week 14: Keep the two prediction categories separate.
   const [predictionHistory, setPredictionHistory] = useState([]);
+  const [independentPredictions, setIndependentPredictions] = useState([]);
   const [predictionHistoryError, setPredictionHistoryError] = useState("");
+
   const [connected, setConnected] = useState(socket.connected);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -77,6 +82,9 @@ function App() {
 
   const selectedLocationRef = useRef("");
   const metricRef = useRef(null);
+
+  // Prevent older classification responses from overwriting newer ones.
+  const classificationRequestRef = useRef(0);
 
   useEffect(() => {
     const updateClock = () => setNow(Date.now());
@@ -151,8 +159,7 @@ function App() {
           ? sortHistory(historicalRecords)
           : [];
 
-        // Merge API history with any Socket.IO measurements
-        // received while the API request was in progress.
+        // Preserve measurements received during the API request.
         setHistory((previous) => {
           const merged = new Map();
 
@@ -185,7 +192,6 @@ function App() {
           ? new Date(latest.recordedAt).getTime()
           : 0;
 
-        // Preserve newer Socket.IO measurements.
         if (current && currentTime >= latestTime) {
           return;
         }
@@ -198,7 +204,6 @@ function App() {
           const matchedPrediction =
             await getPredictionByMetricId(latest._id);
 
-          // Prevent stale prediction responses.
           if (
             active &&
             selectedLocationRef.current === selectedLocationId &&
@@ -230,44 +235,56 @@ function App() {
 
     let active = true;
 
-    const loadPredictions = async () => {
+    const refreshPredictions = async () => {
+      const requestId = ++classificationRequestRef.current;
+
       try {
-        const records = await getPredictionHistory(selectedLocationId);
-        if (!active || selectedLocationRef.current !== selectedLocationId) {
+        const classified =
+          await getClassifiedPredictionHistory(selectedLocationId);
+
+        if (
+          !active ||
+          requestId !== classificationRequestRef.current ||
+          selectedLocationRef.current !== selectedLocationId
+        ) {
           return;
         }
 
-        setPredictionHistory((previous) => {
-          const merged = new Map();
-
-          for (const item of records) {
-            if (item?._id) merged.set(item._id, item);
-          }
-
-          // Keep Socket.IO predictions received during the API request.
-          for (const item of previous) {
-            if (
-              item?._id &&
-              getLocationId(item) === selectedLocationId
-            ) {
-              merged.set(item._id, item);
-            }
-          }
-
-          return sortPredictions([...merged.values()]);
-        });
+        setPredictionHistory(sortPredictions(classified.collector));
+        setIndependentPredictions(
+          sortPredictions(classified.independent)
+        );
         setPredictionHistoryError("");
       } catch {
-        if (active && selectedLocationRef.current === selectedLocationId) {
-          setPredictionHistoryError("Unable to load prediction history.");
+        if (
+          active &&
+          requestId === classificationRequestRef.current &&
+          selectedLocationRef.current === selectedLocationId
+        ) {
+          setPredictionHistoryError(
+            "Unable to load classified prediction history."
+          );
         }
       }
     };
 
-    loadPredictions();
+    refreshPredictions();
+
+    // Socket events request a fresh backend classification.
+    const handlePredictionUpdate = (incomingPrediction) => {
+      if (getLocationId(incomingPrediction) !== selectedLocationId) {
+        return;
+      }
+
+      refreshPredictions();
+    };
+
+    socket.on("prediction:new", handlePredictionUpdate);
 
     return () => {
       active = false;
+      classificationRequestRef.current += 1;
+      socket.off("prediction:new", handlePredictionUpdate);
     };
   }, [selectedLocationId]);
 
@@ -290,8 +307,6 @@ function App() {
         return;
       }
 
-      // Update historical chart with the incoming measurement.
-      // Existing measurements are replaced instead of duplicated.
       setHistory((previous) => {
         const existing = previous.filter(
           (item) => item._id !== incomingMetric._id
@@ -328,15 +343,9 @@ function App() {
         return;
       }
 
-      // Store every prediction for the selected location, not only the
-      // latest metric's prediction.
-      setPredictionHistory((previous) => {
-        const existing = previous.filter(
-          (item) => item._id !== incomingPrediction._id
-        );
-        return sortPredictions([incomingPrediction, ...existing]);
-      });
-
+      // Classification history is refreshed by the other
+      // prediction:new listener. This listener only updates
+      // the latest measurement's prediction panel.
       if (
         incomingPrediction?._id !==
         metricRef.current?._id
@@ -355,7 +364,6 @@ function App() {
           : current
       );
 
-      // Update prediction processing status in history.
       setHistory((previous) =>
         previous.map((item) =>
           item._id === incomingPrediction._id
@@ -388,12 +396,14 @@ function App() {
   const handleLocationChange = (locationId) => {
     selectedLocationRef.current = locationId;
     metricRef.current = null;
+    classificationRequestRef.current += 1;
 
     setSelectedLocationId(locationId);
     setMetric(null);
     setPrediction(null);
     setHistory([]);
     setPredictionHistory([]);
+    setIndependentPredictions([]);
     setPredictionHistoryError("");
   };
 
@@ -476,6 +486,55 @@ function App() {
             <PredictionHistoryAnalytics
               predictions={predictionHistory}
             />
+
+            {/* Week 14: Separate independent predictions */}
+            <section className="prediction-history">
+              <div className="historical-chart-header">
+                <div>
+                  <h2>On-Demand / Independent Predictions</h2>
+                  <p>
+                    Predictions generated independently of
+                    recorded network measurements.
+                  </p>
+                </div>
+
+                <span>
+                  {independentPredictions.length} predictions
+                </span>
+              </div>
+
+              {independentPredictions.length === 0 ? (
+                <p className="dashboard-message">
+                  No independent predictions for this location.
+                </p>
+              ) : (
+                <div className="prediction-history-list">
+                  {independentPredictions.map((item) => (
+                    <div
+                      className="prediction-history-item"
+                      key={item._id}
+                    >
+                      <div>
+                        <strong>{item.predictedStatus}</strong>
+                        <small>
+                          {item.predictedAt
+                            ? new Date(
+                                item.predictedAt
+                              ).toLocaleString("en-IN")
+                            : "--"}
+                        </small>
+                      </div>
+
+                      <span>
+                        {Number.isFinite(Number(item.confidence))
+                          ? `${Number(item.confidence).toFixed(2)}%`
+                          : "--"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
 
             <section className="measurement-info">
               <h2>Measurement Information</h2>

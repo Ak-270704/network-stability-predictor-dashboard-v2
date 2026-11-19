@@ -9,14 +9,19 @@ const {
     createFutureMLPrediction
 } = require("../controllers/predictionController");
 
+const {
+    getClassifiedPredictions
+} = require("../controllers/classifiedPredictionController");
+
 const router = express.Router();
 
-// Existing CRUD routes
 router.get("/", getPredictions);
 router.get("/latest", getLatestPrediction);
-router.post("/", createPrediction);
 
-// New ML prediction routes
+// Read-only collector vs independent prediction classification
+router.get("/classified", getClassifiedPredictions);
+
+router.post("/", createPrediction);
 router.post("/ml/current", createCurrentMLPrediction);
 router.post("/ml/future", createFutureMLPrediction);
 

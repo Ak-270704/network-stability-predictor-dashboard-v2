@@ -1,3 +1,4 @@
+
 import axios from "axios";
 
 const API_BASE_URL =
@@ -48,6 +49,37 @@ export const getPredictionHistory = async (locationId) => {
     );
 };
 
+// Week 14: Fetch collector-linked and independent predictions
+// from the backend classification endpoint.
+export const getClassifiedPredictionHistory = async (locationId) => {
+  if (!locationId) {
+    return {
+      collector: [],
+      independent: [],
+    };
+  }
+
+  const response = await api.get("/api/predictions/classified", {
+    params: { locationId },
+  });
+
+  const data = response.data?.data;
+
+  if (
+    !response.data?.success ||
+    !data ||
+    !Array.isArray(data.collector) ||
+    !Array.isArray(data.independent)
+  ) {
+    throw new Error("Invalid prediction classification response");
+  }
+
+  return {
+    collector: data.collector,
+    independent: data.independent,
+  };
+};
+
 export const getLatestPrediction = async () => {
   const response = await api.get("/api/predictions/latest");
   return response.data.data;
@@ -70,4 +102,5 @@ export const getPredictionByMetricId = async (metricId) => {
     ) || null
   );
 };
+
 export default api;
