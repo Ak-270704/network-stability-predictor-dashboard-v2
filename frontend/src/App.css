@@ -351,3 +351,363 @@
     width: 100%;
   }
 }
+
+/* =========================================
+   WEEK 13 — HISTORICAL ANALYTICS
+   ========================================= */
+
+.historical-chart {
+  margin-top: 24px;
+  padding: 24px;
+  background: #111c30;
+  border: 1px solid #26364d;
+  border-radius: 18px;
+  color: #f8fafc;
+  min-width: 0;
+}
+
+.historical-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.historical-chart-header h2 {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.historical-chart-header p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #94a3b8;
+}
+
+.historical-chart-header > span {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 999px;
+  color: #7dd3fc;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.historical-chart-container {
+  width: 100%;
+  min-width: 0;
+  height: 320px;
+}
+
+.historical-chart .recharts-default-legend {
+  padding-top: 12px !important;
+}
+
+.historical-chart .recharts-legend-item-text {
+  color: #cbd5e1 !important;
+}
+
+.historical-chart .recharts-tooltip-wrapper {
+  outline: none;
+}
+
+@media (max-width: 768px) {
+  .historical-chart {
+    padding: 16px 12px;
+    margin-top: 18px;
+    border-radius: 14px;
+  }
+
+  .historical-chart-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .historical-chart-header h2 {
+    font-size: 1.1rem;
+  }
+
+  .historical-chart-header p {
+    font-size: 0.82rem;
+  }
+
+  .historical-chart-container {
+    height: 280px;
+  }
+}
+
+/* WEEK 13 — MULTI-CHART ANALYTICS */
+
+.historical-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.historical-trend-card {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid #26364d;
+  border-radius: 14px;
+  background: #0f172a;
+}
+
+.historical-trend-card:first-child {
+  grid-column: 1 / -1;
+}
+
+.historical-trend-header {
+  margin-bottom: 18px;
+}
+
+.historical-trend-header h3 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: #f8fafc;
+}
+
+.historical-trend-header p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #94a3b8;
+}
+
+@media (max-width: 900px) {
+  .historical-charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .historical-trend-card:first-child {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .historical-charts-grid {
+    gap: 14px;
+  }
+
+  .historical-trend-card {
+    padding: 14px 8px;
+  }
+
+  .historical-trend-header {
+    padding: 0 6px;
+  }
+}
+
+/* WEEK 13 — DUAL ANALYTICS FILTERS */
+
+.historical-filters {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 24px;
+  padding: 18px;
+  border: 1px solid #26364d;
+  border-radius: 14px;
+  background: #0f172a;
+}
+
+.historical-filter-field {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 200px;
+  gap: 8px;
+  min-width: 0;
+}
+
+.historical-filter-field label {
+  color: #cbd5e1;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.historical-filter-field select {
+  width: 100%;
+  padding: 11px 14px;
+  background: #18253b;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.historical-filter-field select:focus {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+.historical-filter-reset {
+  padding: 11px 20px;
+  min-height: 44px;
+  border: 1px solid #38bdf8;
+  border-radius: 10px;
+  background: transparent;
+  color: #7dd3fc;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.historical-filter-reset:hover {
+  background: rgba(56, 189, 248, 0.12);
+}
+
+@media (max-width: 600px) {
+  .historical-filters {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .historical-filter-field {
+    flex-basis: 100%;
+  }
+
+  .historical-filter-reset {
+    width: 100%;
+  }
+}
+
+/* WEEK 13 — AI PREDICTION HISTORY ANALYTICS */
+
+.prediction-history {
+  margin-top: 24px;
+  padding: 24px;
+  background: #111c30;
+  border: 1px solid #26364d;
+  border-radius: 18px;
+  color: #f8fafc;
+  min-width: 0;
+}
+
+.prediction-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.prediction-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid #26364d;
+  border-radius: 14px;
+  background: #0f172a;
+  min-width: 0;
+}
+
+.prediction-summary-card span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.prediction-summary-card strong {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.prediction-history-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.prediction-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.prediction-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #26364d;
+  border-radius: 10px;
+  background: #18253b;
+}
+
+.prediction-history-item > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.prediction-history-item strong {
+  font-size: 0.95rem;
+}
+
+.prediction-history-item small {
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+.prediction-history-item > span {
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .prediction-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .prediction-history-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .prediction-history {
+    padding: 16px 12px;
+  }
+
+  .prediction-summary-grid {
+    gap: 10px;
+  }
+
+  .prediction-summary-card {
+    padding: 14px;
+  }
+
+  .prediction-summary-card strong {
+    font-size: 1.4rem;
+  }
+
+  .prediction-history-item {
+    padding: 12px;
+  }
+}
+@media (min-width: 1100px) {
+  .prediction-summary-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.prediction-summary-card strong {
+  overflow-wrap: anywhere;
+}

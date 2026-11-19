@@ -3,10 +3,13 @@
 import DashboardHeader from "./components/Dashboard/DashboardHeader";
 import MetricCard from "./components/Dashboard/MetricCard";
 import PredictionPanel from "./components/Dashboard/PredictionPanel";
+import HistoricalMetricsChart from "./components/Analytics/HistoricalMetricsChart";
+import PredictionHistoryAnalytics from "./components/Analytics/PredictionHistoryAnalytics";
 
 import {
   getLocations,
   getMLMetricHistory,
+  getPredictionHistory,
   getPredictionByMetricId,
 } from "./services/api";
 
@@ -45,15 +48,35 @@ const formatMetricValue = (metric, key) => {
     : value;
 };
 
+const sortPredictions = (records) =>
+  [...records].sort(
+    (a, b) =>
+      new Date(b.predictedAt).getTime() -
+      new Date(a.predictedAt).getTime()
+  );
+
+const sortHistory = (records) =>
+  [...records].sort(
+    (a, b) =>
+      new Date(b.recordedAt).getTime() -
+      new Date(a.recordedAt).getTime()
+  );
+
 function App() {
   const [locations, setLocations] = useState([]);
   const [selectedLocationId, setSelectedLocationId] = useState("");
   const [metric, setMetric] = useState(null);
+  const [history, setHistory] = useState([]);
   const [prediction, setPrediction] = useState(null);
+  const [predictionHistory, setPredictionHistory] = useState([]);
+  const [predictionHistoryError, setPredictionHistoryError] = useState("");
   const [connected, setConnected] = useState(socket.connected);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [now, setNow] = useState(0);
+
+  const selectedLocationRef = useRef("");
+  const metricRef = useRef(null);
 
   useEffect(() => {
     const updateClock = () => setNow(Date.now());
@@ -66,8 +89,6 @@ function App() {
       clearInterval(interval);
     };
   }, []);
-  const selectedLocationRef = useRef("");
-  const metricRef = useRef(null);
 
   useEffect(() => {
     selectedLocationRef.current = selectedLocationId;
@@ -84,6 +105,7 @@ function App() {
         setLocations(list);
 
         if (list.length > 0) {
+          selectedLocationRef.current = list[0]._id;
           setSelectedLocationId(list[0]._id);
         } else {
           setLoading(false);
@@ -91,6 +113,7 @@ function App() {
       })
       .catch(() => {
         if (!active) return;
+
         setError("Unable to load monitoring locations.");
         setLoading(false);
       });
@@ -115,14 +138,43 @@ function App() {
       setLoading(true);
       setError("");
       setMetric(null);
+      setHistory([]);
       setPrediction(null);
+
       try {
-        const history = await getMLMetricHistory(selectedLocationId);
+        const historicalRecords =
+          await getMLMetricHistory(selectedLocationId);
 
         if (!active) return;
 
-        const latest = Array.isArray(history) ? history[0] : null;
+        const records = Array.isArray(historicalRecords)
+          ? sortHistory(historicalRecords)
+          : [];
 
+        // Merge API history with any Socket.IO measurements
+        // received while the API request was in progress.
+        setHistory((previous) => {
+          const merged = new Map();
+
+          for (const item of records) {
+            if (item?._id) {
+              merged.set(item._id, item);
+            }
+          }
+
+          for (const item of previous) {
+            if (
+              item?._id &&
+              getLocationId(item) === selectedLocationId
+            ) {
+              merged.set(item._id, item);
+            }
+          }
+
+          return sortHistory([...merged.values()]).slice(0, 100);
+        });
+
+        const latest = records[0] ?? null;
         const current = metricRef.current;
 
         const currentTime = current?.recordedAt
@@ -149,6 +201,7 @@ function App() {
           // Prevent stale prediction responses.
           if (
             active &&
+            selectedLocationRef.current === selectedLocationId &&
             metricRef.current?._id === latest._id
           ) {
             setPrediction(matchedPrediction);
@@ -159,11 +212,59 @@ function App() {
           setError("Unable to load network metrics.");
         }
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
     loadLocationData();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedLocationId]);
+
+  useEffect(() => {
+    if (!selectedLocationId) return;
+
+    let active = true;
+
+    const loadPredictions = async () => {
+      try {
+        const records = await getPredictionHistory(selectedLocationId);
+        if (!active || selectedLocationRef.current !== selectedLocationId) {
+          return;
+        }
+
+        setPredictionHistory((previous) => {
+          const merged = new Map();
+
+          for (const item of records) {
+            if (item?._id) merged.set(item._id, item);
+          }
+
+          // Keep Socket.IO predictions received during the API request.
+          for (const item of previous) {
+            if (
+              item?._id &&
+              getLocationId(item) === selectedLocationId
+            ) {
+              merged.set(item._id, item);
+            }
+          }
+
+          return sortPredictions([...merged.values()]);
+        });
+        setPredictionHistoryError("");
+      } catch {
+        if (active && selectedLocationRef.current === selectedLocationId) {
+          setPredictionHistoryError("Unable to load prediction history.");
+        }
+      }
+    };
+
+    loadPredictions();
 
     return () => {
       active = false;
@@ -188,6 +289,19 @@ function App() {
       ) {
         return;
       }
+
+      // Update historical chart with the incoming measurement.
+      // Existing measurements are replaced instead of duplicated.
+      setHistory((previous) => {
+        const existing = previous.filter(
+          (item) => item._id !== incomingMetric._id
+        );
+
+        return sortHistory([
+          incomingMetric,
+          ...existing,
+        ]).slice(0, 100);
+      });
 
       const current = metricRef.current;
 
@@ -214,7 +328,19 @@ function App() {
         return;
       }
 
-      if (incomingPrediction?._id !== metricRef.current?._id) {
+      // Store every prediction for the selected location, not only the
+      // latest metric's prediction.
+      setPredictionHistory((previous) => {
+        const existing = previous.filter(
+          (item) => item._id !== incomingPrediction._id
+        );
+        return sortPredictions([incomingPrediction, ...existing]);
+      });
+
+      if (
+        incomingPrediction?._id !==
+        metricRef.current?._id
+      ) {
         return;
       }
 
@@ -222,8 +348,24 @@ function App() {
 
       setMetric((current) =>
         current
-          ? { ...current, predictionStatus: "completed" }
+          ? {
+              ...current,
+              predictionStatus: "completed",
+            }
           : current
+      );
+
+      // Update prediction processing status in history.
+      setHistory((previous) =>
+        previous.map((item) =>
+          item._id === incomingPrediction._id
+            ? {
+                ...item,
+                predictionStatus: "completed",
+                predictionId: incomingPrediction._id,
+              }
+            : item
+        )
       );
     };
 
@@ -243,6 +385,18 @@ function App() {
     };
   }, []);
 
+  const handleLocationChange = (locationId) => {
+    selectedLocationRef.current = locationId;
+    metricRef.current = null;
+
+    setSelectedLocationId(locationId);
+    setMetric(null);
+    setPrediction(null);
+    setHistory([]);
+    setPredictionHistory([]);
+    setPredictionHistoryError("");
+  };
+
   const recordedAt = metric?.recordedAt
     ? new Date(metric.recordedAt)
     : null;
@@ -257,7 +411,7 @@ function App() {
       <DashboardHeader
         locations={locations}
         selectedLocationId={selectedLocationId}
-        onLocationChange={setSelectedLocationId}
+        onLocationChange={handleLocationChange}
         isConnected={connected}
       />
 
@@ -271,15 +425,27 @@ function App() {
             </p>
           </div>
 
-          <span className={`data-freshness ${isRecent ? "fresh" : "stale"}`}>
-            {isRecent ? "Recent Measurement" : "Historical / No Recent Data"}
+          <span
+            className={`data-freshness ${
+              isRecent ? "fresh" : "stale"
+            }`}
+          >
+            {isRecent
+              ? "Recent Measurement"
+              : "Historical / No Recent Data"}
           </span>
         </section>
 
-        {error && <div className="dashboard-error">{error}</div>}
+        {error && (
+          <div className="dashboard-error">
+            {error}
+          </div>
+        )}
 
         {loading ? (
-          <p className="dashboard-message">Loading network data...</p>
+          <p className="dashboard-message">
+            Loading network data...
+          </p>
         ) : (
           <>
             <section className="metrics-grid">
@@ -297,6 +463,18 @@ function App() {
             <PredictionPanel
               prediction={prediction}
               processingStatus={metric?.predictionStatus}
+            />
+
+            <HistoricalMetricsChart history={history} />
+
+            {predictionHistoryError && (
+              <p className="dashboard-error" role="alert">
+                {predictionHistoryError}
+              </p>
+            )}
+
+            <PredictionHistoryAnalytics
+              predictions={predictionHistory}
             />
 
             <section className="measurement-info">

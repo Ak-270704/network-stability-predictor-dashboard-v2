@@ -25,6 +25,29 @@ export const getMLMetricHistory = async (locationId) => {
   return response.data.data;
 };
 
+export const getPredictionHistory = async (locationId) => {
+  const response = await api.get("/api/predictions");
+
+  const predictions = Array.isArray(response.data.data)
+    ? response.data.data
+    : [];
+
+  return predictions
+    .filter((prediction) => {
+      const predictionLocationId =
+        typeof prediction.location === "object"
+          ? prediction.location?._id
+          : prediction.location;
+
+      return predictionLocationId === locationId;
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.predictedAt).getTime() -
+        new Date(a.predictedAt).getTime()
+    );
+};
+
 export const getLatestPrediction = async () => {
   const response = await api.get("/api/predictions/latest");
   return response.data.data;
